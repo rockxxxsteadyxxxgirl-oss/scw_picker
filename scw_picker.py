@@ -525,7 +525,8 @@ HTML = """<!DOCTYPE html>
 
 
 def main():
-  html_path = Path(__file__).with_suffix(".html")
+  # 絶対パスで保存しつつブラウザを開く（Streamlitなど相対パス不可対策）
+  html_path = Path(__file__).resolve().with_suffix(".html")
   html_path.write_text(HTML, encoding="utf-8")
   webbrowser.open(html_path.as_uri())
   print("ブラウザが開かない場合は次のファイルを直接開いてください:")
