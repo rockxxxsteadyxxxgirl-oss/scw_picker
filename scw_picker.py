@@ -63,6 +63,8 @@ HTML = """<!DOCTYPE html>
     .site-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
     .btn-drag.dragging { opacity: 0.6; border: 1px dashed var(--border); }
     .fav-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .calendar-btn { background: #2563eb; color: #fff; border: 1px solid #1d4ed8; padding: 8px 12px; border-radius: 4px; text-decoration: none; display: inline-block; }
+    .calendar-btn:hover { background: #1d4ed8; }
   </style>
 </head>
 <body>
@@ -121,6 +123,9 @@ HTML = """<!DOCTYPE html>
         <li>ライト/ダーク切替はブラウザに保存され、再訪時に復元されます。</li>
         <li>サイトボタンはドラッグで並び替えでき、順序は保存されます。</li>
       </ul>
+    </div>
+    <div class="row">
+      <a href="https://ss1.xrea.com/tegaugi.s323.xrea.com/astro_calendar/" target="_blank" rel="noopener" class="calendar-btn">天文カレンダーを開く</a>
     </div>
   </div>
 
