@@ -62,6 +62,7 @@ HTML = """<!DOCTYPE html>
     input[type="text"] { padding: 6px; width: 240px; max-width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; }
     .site-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
     .btn-drag.dragging { opacity: 0.6; border: 1px dashed var(--border); }
+    .fav-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   </style>
 </head>
 <body>
@@ -99,6 +100,14 @@ HTML = """<!DOCTYPE html>
       <input id="fav-name" type="text" placeholder="お気に入り名（空なら地名か座標）" />
       <button id="fav-save" disabled>お気に入りに追加 (最大30件)</button>
     </div>
+    <div class="row fav-tools">
+      <button id="fav-export" class="secondary" type="button">お気に入りを書き出す</button>
+      <label class="secondary" style="padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer;">
+        お気に入りを読み込む
+        <input id="fav-import" type="file" accept="application/json" style="display:none;">
+      </label>
+      <span class="hint">JSON形式でエクスポート/インポートできます</span>
+    </div>
     <div class="row">
       <div><strong>お気に入り一覧 (最大30件):</strong></div>
       <div id="fav-list" class="fav-list"></div>
@@ -133,6 +142,8 @@ HTML = """<!DOCTYPE html>
     const placeEl = document.getElementById("placename");
     const favNameEl = document.getElementById("fav-name");
     const favSaveBtn = document.getElementById("fav-save");
+    const favExportBtn = document.getElementById("fav-export");
+    const favImportInput = document.getElementById("fav-import");
     const favListEl = document.getElementById("fav-list");
     const themeToggleBtn = document.getElementById("theme-toggle");
     const siteButtons = document.getElementById("site-buttons");
@@ -465,6 +476,56 @@ HTML = """<!DOCTYPE html>
     }
 
     favSaveBtn.onclick = addFavorite;
+
+    // お気に入り エクスポート
+    function exportFavorites() {
+      const data = JSON.stringify(loadFavorites(), null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "favorites.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // お気に入り インポート
+    function importFavoritesFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (!Array.isArray(parsed)) throw new Error("not array");
+          const cleaned = parsed
+            .map((f) => ({
+              name: typeof f.name === "string" && f.name ? f.name : `${Number(f.lat)?.toFixed(4)}, ${Number(f.lng)?.toFixed(4)}`,
+              lat: Number(f.lat),
+              lng: Number(f.lng),
+            }))
+            .filter((f) => Number.isFinite(f.lat) && Number.isFinite(f.lng));
+          if (cleaned.length === 0) throw new Error("empty");
+          saveFavorites(cleaned.slice(0, MAX_FAVS));
+          renderFavorites();
+          alert("お気に入りをインポートしました。");
+        } catch (e) {
+          alert("インポートに失敗しました。JSON形式と緯度経度を確認してください。");
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    if (favExportBtn) favExportBtn.onclick = exportFavorites;
+    if (favImportInput) {
+      favImportInput.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          importFavoritesFromFile(file);
+          favImportInput.value = "";
+        }
+      });
+    }
 
     function jumpToInput() {
       const raw = (inputCoordsEl?.value || "").trim();
