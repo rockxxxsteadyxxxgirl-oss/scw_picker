@@ -510,23 +510,44 @@ HTML = """<!DOCTYPE html>
   <style>
     body { margin:0; background:#0f172a; color:#e5e7eb; font-family:system-ui,-apple-system,sans-serif; }
     .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); grid-auto-rows:50vh; gap:6px; padding:6px; box-sizing:border-box; height:100vh; }
+    .grid.maximized { grid-template-columns:1fr; grid-auto-rows:1fr; }
     .card { border:1px solid #334155; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; }
-    .card header { padding:6px 10px; background:#111827; border-bottom:1px solid #334155; font-weight:600; }
+    .card header { padding:6px 10px; background:#111827; border-bottom:1px solid #334155; font-weight:600; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .actions { display:flex; gap:6px; }
+    .actions button { background:#2563eb; color:#fff; border:0; border-radius:4px; padding:4px 8px; cursor:pointer; }
     iframe { flex:1; border:0; width:100%; height:100%; }
   </style>
 </head>
 <body>
-  <div class="grid">
+  <div class="grid" id="grid">
     ${models
       .map(
-        (m) => `
-      <div class="card">
-        <header>${m.label}</header>
+        (m, i) => `
+      <div class="card" data-idx="${i}">
+        <header>
+          <span>${m.label}</span>
+          <div class="actions">
+            <button onclick="maximize(${i})">最大化</button>
+            <button onclick="restore()">元に戻す</button>
+          </div>
+        </header>
         <iframe src="${windyEmbedUrl(lat, lng, m.product)}" loading="lazy"></iframe>
       </div>`
       )
       .join("")}
   </div>
+  <script>
+    const grid = document.getElementById("grid");
+    const cards = Array.from(grid.querySelectorAll(".card"));
+    function maximize(idx) {
+      cards.forEach((c, i) => { c.style.display = i === idx ? "flex" : "none"; });
+      grid.classList.add("maximized");
+    }
+    function restore() {
+      cards.forEach((c) => (c.style.display = "flex"));
+      grid.classList.remove("maximized");
+    }
+  <\\/script>
 </body>
 </html>`;
       const w = window.open("", "_blank");
