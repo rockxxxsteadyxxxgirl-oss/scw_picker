@@ -76,6 +76,10 @@ HTML = """<!DOCTYPE html>
       <span>地図をクリックすると各サイトを開くボタンが有効になります。</span>
       <button id="theme-toggle" class="secondary" type="button">ダーク/ライト切替</button>
     </div>
+    <div class="row">
+      <label>座標 <input id="input-coords" type="text" placeholder="38.13665621942762, 140.44956778749423" style="width:260px;" /></label>
+      <button id="jump-btn" class="secondary" type="button">この座標へ移動</button>
+    </div>
     <div class="row">選択座標: <code id="coords">未選択</code></div>
     <div class="row">地名: <code id="placename">未取得</code></div>
     <div class="row site-buttons" id="site-buttons">
@@ -133,6 +137,8 @@ HTML = """<!DOCTYPE html>
     const themeToggleBtn = document.getElementById("theme-toggle");
     const siteButtons = document.getElementById("site-buttons");
     const buttonsSection = siteButtons;
+    const inputCoordsEl = document.getElementById("input-coords");
+    const jumpBtn = document.getElementById("jump-btn");
 
     const openScwBtn = document.getElementById("open-scw");
     const openCoBtn = document.getElementById("open-co");
@@ -232,6 +238,24 @@ HTML = """<!DOCTYPE html>
       openVentuskyBtn.disabled = false;
       openMeteoblueBtn.disabled = false;
       favSaveBtn.disabled = false;
+    }
+
+    function setLocation(lat, lng, opts = { pan: true, scroll: true, zoom: null }) {
+      currentLatLng = { lat, lng };
+      if (!marker) {
+        marker = L.marker([lat, lng]).addTo(map);
+      } else {
+        marker.setLatLng([lat, lng]);
+      }
+      if (opts.pan) {
+        const targetZoom = opts.zoom != null ? opts.zoom : map.getZoom();
+        map.setView([lat, lng], targetZoom);
+      }
+      updateLinks(lat, lng);
+      renderFavorites();
+      if (opts.scroll && buttonsSection) {
+        buttonsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     }
 
     function updateLinks(lat, lng) {
@@ -442,19 +466,32 @@ HTML = """<!DOCTYPE html>
 
     favSaveBtn.onclick = addFavorite;
 
+    function jumpToInput() {
+      const raw = (inputCoordsEl?.value || "").trim();
+      const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+      if (parts.length < 2) {
+        alert("緯度,経度をカンマ区切りで入力してください（例: 38.2160334, 140.3418724）。");
+        return;
+      }
+      const latNum = parseFloat(parts[0]);
+      const lngNum = parseFloat(parts[1]);
+      if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
+        alert("緯度,経度を数値で入力してください（例: 38.2160334, 140.3418724）。");
+        return;
+      }
+      setLocation(latNum, lngNum, { pan: true, scroll: true, zoom: 13 });
+    }
+
+    if (jumpBtn) jumpBtn.onclick = jumpToInput;
+    if (inputCoordsEl) {
+      inputCoordsEl.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") jumpToInput();
+      });
+    }
+
     map.on("click", (e) => {
       const { lat, lng } = e.latlng;
-      currentLatLng = { lat, lng };
-      if (!marker) {
-        marker = L.marker([lat, lng]).addTo(map);
-      } else {
-        marker.setLatLng([lat, lng]);
-      }
-      updateLinks(lat, lng);
-      renderFavorites();
-      if (buttonsSection) {
-        buttonsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      setLocation(lat, lng, { pan: false, scroll: true });
     });
 
     function openWindyQuadWindow(lat, lng) {
@@ -526,6 +563,8 @@ HTML = """<!DOCTYPE html>
 </body>
 </html>
 """
+
+html_path = Path(__file__).resolve().with_suffix(".html")
 
 
 def main():
