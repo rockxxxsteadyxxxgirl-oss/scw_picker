@@ -572,7 +572,7 @@ HTML = """<!DOCTYPE html>
         { label: "ECMWF", product: "ecmwf" },
         { label: "GFS", product: "gfs" },
         { label: "ICON", product: "icon" },
-        { label: "MSMの分割表示が公式非対応のため、分割表示から除外しています。", product: null },
+        { label: "SCW", product: "scw" },
       ];
       const doc = `
 <!DOCTYPE html>
@@ -597,7 +597,15 @@ HTML = """<!DOCTYPE html>
     ${models
       .map(
         (m, i) => {
-          const url = m.product ? windyEmbedUrl(lat, lng, m.product) : "";
+          let url = "";
+          let body = "";
+          if (m.product === "scw") {
+            url = `https://supercweather.com/?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}&model=msm78&element=cp&zl=13`;
+            body = `<iframe src="${url}" loading="lazy"></iframe>`;
+          } else {
+            url = windyEmbedUrl(lat, lng, m.product);
+            body = `<iframe src="${url}" loading="lazy"></iframe>`;
+          }
           return `
       <div class="card" data-idx="${i}">
         <header>
@@ -607,7 +615,7 @@ HTML = """<!DOCTYPE html>
             <button onclick="restore()">元に戻す</button>
           </div>
         </header>
-        ${m.product ? `<iframe src="${url}" loading="lazy"></iframe>` : `<div class="url"></div>`}
+        ${body}
       </div>`;
         }
       )
