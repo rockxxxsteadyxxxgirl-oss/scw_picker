@@ -54,7 +54,7 @@ def load_html() -> str:
 def main():
   st.set_page_config(page_title="座標ピッカー", layout="wide")
   html = load_html()
-  st.components.v1.html(html, height=1200, scrolling=True)
+  st.components.v1.html(html, height=1400, scrolling=True)
 
 
 if __name__ == "__main__":
