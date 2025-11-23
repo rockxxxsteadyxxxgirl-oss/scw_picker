@@ -30,16 +30,16 @@ HTML = """<!DOCTYPE html>
       --border: #d1d5db;
     }
     [data-theme="dark"] {
-      --bg: #0f172a;
+      --bg: #000000;
       --fg: #e5e7eb;
-      --panel-bg: #111827;
+      --panel-bg: rgba(10, 10, 10, 0.75);
       --accent: #60a5fa;
-      --code-bg: #1f2937;
+      --code-bg: #0f172a;
       --border: #334155;
     }
-    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
-    #map { width: 100%; height: 60vh; }
-    .panel { padding: 12px; font-family: system-ui, -apple-system, sans-serif; background: var(--panel-bg); border-top: 1px solid var(--border); }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); overflow-x: hidden; overflow-y: auto; }
+    #map { width: 100%; height: 60vh; position: relative; z-index: 1; }
+    .panel { padding: 12px; font-family: system-ui, -apple-system, sans-serif; background: var(--panel-bg); border-top: 1px solid var(--border); position: relative; z-index: 1; }
     .row { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     code { background: var(--code-bg); padding: 2px 4px; }
     button {
@@ -65,9 +65,14 @@ HTML = """<!DOCTYPE html>
     .fav-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .calendar-btn { background: #2563eb; color: #fff; border: 1px solid #1d4ed8; padding: 8px 12px; border-radius: 4px; text-decoration: none; display: inline-block; }
     .calendar-btn:hover { background: #1d4ed8; }
+    #starCanvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; display: block; opacity: 0; transition: opacity 0.3s ease; }
+    [data-theme="dark"] #starCanvas { opacity: 1; }
+    [data-theme="dark"] #starCanvas { display: block; }
+    .page { position: relative; z-index: 1; }
   </style>
 </head>
 <body>
+  <canvas id="starCanvas"></canvas>
   <div class="panel" style="padding-bottom:8px;">
     <div class="row" style="margin-bottom:0;">
       <h1 style="margin:0; font-size:1.25rem;">座標ピッカー</h1>
@@ -176,7 +181,7 @@ HTML = """<!DOCTYPE html>
     const WINDY_LAYER = "clouds";
     const WINDY_SLUG = "-%E9%9B%B2-clouds";
     // Windy共有URL用の末尾パラメータ（共有IDは固定せず m=******** とする）
-    const WINDY_TRAIL = "i:pressure,p:cities,m=********";
+    const WINDY_TRAIL = "i:pressure,p:cities";
     const LPM_DEFAULT_ZOOM = 10;
     const LPM_STATE = "eyJiYXNlbWFwIjoiTGF5ZXJCaW5nUm9hZCIsIm92ZXJsYXkiOiJ2aWlyc18yMDI0Iiwib3ZlcmxheWNvbG9yIjpmYWxzZSwib3ZlcmxheW9wYWNpdHkiOiI2MCIsImZlYXR1cmVzb3BhY2l0eSI6Ijg1In0=";
     const FAV_KEY = "scw_picker_favorites_v1";
@@ -673,6 +678,70 @@ HTML = """<!DOCTYPE html>
 
     setupSiteDrag();
     renderFavorites();
+
+    // 星の流れ（ダークモードのみ表示）: 日周運動をイメージ
+    const starCanvas = document.getElementById("starCanvas");
+    const ctx = starCanvas.getContext("2d");
+    let stars = [];
+
+    function resizeStars() {
+      starCanvas.width = window.innerWidth;
+      starCanvas.height = window.innerHeight;
+    }
+
+    function initStars() {
+      const count = 320;
+      stars = Array.from({ length: count }, () => ({
+        x: Math.random() * starCanvas.width,
+        y: Math.random() * starCanvas.height,
+        size: Math.random() * 1.5 + 0.5,
+        speedX: -(Math.random() * 0.2 + 0.05), // 左方向へゆっくり流れる（日周運動イメージ）
+        color: pickStarColor(),
+      }));
+    }
+
+    function pickStarColor() {
+      // 白・灰・青を主体に、赤は0.1%、橙/黄は1%に抑える
+      const r = Math.random() * 100;
+      if (r < 0.1) return "rgba(255,0,0,0.85)";       // 赤 0.1%
+      if (r < 1.1) return "rgba(255,165,0,0.85)";     // オレンジ 1%
+      if (r < 2.1) return "rgba(255,255,0,0.85)";     // 黄色 1%
+      const palette = [
+        "rgba(255,255,255,0.9)",  // 白
+        "rgba(220,220,220,0.8)",  // 灰
+        "rgba(170,190,255,0.85)", // 青白
+      ];
+      return palette[Math.floor(Math.random() * palette.length)];
+    }
+
+    function drawStars() {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      if (!isDark) {
+        ctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+        requestAnimationFrame(drawStars);
+        return;
+      }
+      ctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+      stars.forEach((s) => {
+        s.x += s.speedX;
+        if (s.x < -5) s.x = starCanvas.width + 5;
+        const x = s.x;
+        const y = s.y;
+        ctx.fillStyle = s.color || "rgba(255,255,255,0.85)";
+        ctx.beginPath();
+        ctx.arc(x, y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      requestAnimationFrame(drawStars);
+    }
+
+    window.addEventListener("resize", () => {
+      resizeStars();
+      initStars();
+    });
+    resizeStars();
+    initStars();
+    requestAnimationFrame(drawStars);
   </script>
 </body>
 </html>
