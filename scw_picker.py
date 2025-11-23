@@ -118,7 +118,7 @@ HTML = """<!DOCTYPE html>
       <div><strong>使い方:</strong></div>
       <ul style="margin:4px 0 0 18px; padding:0; color:var(--fg); line-height:1.4;">
         <li>地図をクリック → 座標と地名を取得し、各サイトボタンが有効になります。</li>
-        <li>Windy 3分割ボタンは別ウィンドウで3モデル＋空き1枠を表示します（ポップアップ許可が必要な場合あり）。</li>
+        <li>Windy 3分割ボタンは別ウィンドウでECMWF/GFS/ICONとSCW枠を表示します（JMA MSMは公式非対応のため除外・ポップアップ許可が必要な場合あり）。</li>
         <li>お気に入りは最大10件。名称未入力なら地名→座標の順で自動設定。削除は各行の削除ボタン。</li>
         <li>ライト/ダーク切替はブラウザに保存され、再訪時に復元されます。</li>
         <li>サイトボタンはドラッグで並び替えでき、順序は保存されます。</li>
@@ -175,8 +175,8 @@ HTML = """<!DOCTYPE html>
     const WINDY_Z = 10;
     const WINDY_LAYER = "clouds";
     const WINDY_SLUG = "-%E9%9B%B2-clouds";
-    const WINDY_TRAIL = "i:pressure,p:cities,m:eIIaj3f";
-    const WINDY_MAP_ID = "eIIaj3f"; // iframe/embed 用にも付与してWindy本家URLと揃える
+    // Windy共有URL用の末尾パラメータ（共有IDは固定せず m=******** とする）
+    const WINDY_TRAIL = "i:pressure,p:cities,m=********";
     const LPM_DEFAULT_ZOOM = 10;
     const LPM_STATE = "eyJiYXNlbWFwIjoiTGF5ZXJCaW5nUm9hZCIsIm92ZXJsYXkiOiJ2aWlyc18yMDI0Iiwib3ZlcmxheWNvbG9yIjpmYWxzZSwib3ZlcmxheW9wYWNpdHkiOiI2MCIsImZlYXR1cmVzb3BhY2l0eSI6Ijg1In0=";
     const FAV_KEY = "scw_picker_favorites_v1";
@@ -203,14 +203,22 @@ HTML = """<!DOCTYPE html>
     let siteOrder = [...siteButtonIds];
     let buttonDragSrcId = null;
 
-    const windyUrl = (lat, lng) =>
-      `https://www.windy.com/ja/${WINDY_SLUG}?${WINDY_LAYER},${lat.toFixed(3)},${lng.toFixed(3)},${WINDY_Z},${WINDY_TRAIL}`;
-    const windyGfsUrl = (lat, lng) =>
-      `https://www.windy.com/ja/${WINDY_SLUG}?gfs,${WINDY_LAYER},${lat.toFixed(3)},${lng.toFixed(3)},${WINDY_Z},${WINDY_TRAIL}`;
-    const windyJmaUrl = (lat, lng) =>
-      `https://www.windy.com/ja/${WINDY_SLUG}?jmaMsm,${WINDY_LAYER},${lat.toFixed(3)},${lng.toFixed(3)},${WINDY_Z},${WINDY_TRAIL}`;
-    const windyIconUrl = (lat, lng) =>
-      `https://www.windy.com/ja/${WINDY_SLUG}?icon,${WINDY_LAYER},${lat.toFixed(3)},${lng.toFixed(3)},${WINDY_Z},${WINDY_TRAIL}`;
+    const windyUrl = (lat, lng) => {
+      const z = typeof map?.getZoom === "function" ? map.getZoom() : WINDY_Z;
+      return `https://www.windy.com/ja/${WINDY_SLUG}?${WINDY_LAYER},${lat.toFixed(4)},${lng.toFixed(4)},${z},${WINDY_TRAIL}`;
+    };
+    const windyGfsUrl = (lat, lng) => {
+      const z = typeof map?.getZoom === "function" ? map.getZoom() : WINDY_Z;
+      return `https://www.windy.com/ja/${WINDY_SLUG}?gfs,${WINDY_LAYER},${lat.toFixed(4)},${lng.toFixed(4)},${z},${WINDY_TRAIL}`;
+    };
+    const windyJmaUrl = (lat, lng) => {
+      const z = typeof map?.getZoom === "function" ? map.getZoom() : WINDY_Z;
+      return `https://www.windy.com/ja/${WINDY_SLUG}?jmaMsm,${WINDY_LAYER},${lat.toFixed(4)},${lng.toFixed(4)},${z},${WINDY_TRAIL}&marker=true`;
+    };
+    const windyIconUrl = (lat, lng) => {
+      const z = typeof map?.getZoom === "function" ? map.getZoom() : WINDY_Z;
+      return `https://www.windy.com/ja/${WINDY_SLUG}?icon,${WINDY_LAYER},${lat.toFixed(4)},${lng.toFixed(4)},${z},${WINDY_TRAIL}`;
+    };
     const lpmUrl = (lat, lng) => {
       const z = (map && typeof map.getZoom === "function") ? map.getZoom() : LPM_DEFAULT_ZOOM;
       return `https://www.lightpollutionmap.info/#zoom=${z.toFixed(2)}&lat=${lat.toFixed(4)}&lon=${lng.toFixed(4)}&state=${LPM_STATE}`;
@@ -221,8 +229,8 @@ HTML = """<!DOCTYPE html>
     const windyEmbedUrl = (lat, lng, product) => {
       const latStr = lat.toFixed(3);
       const lngStr = lng.toFixed(3);
-      // product と model を明示指定し、埋め込みと本家URLで同じモデルを使う
-      return `${WINDY_EMBED_BASE}?lat=${latStr}&lon=${lngStr}&detailLat=${latStr}&detailLon=${lngStr}&zoom=${WINDY_Z}&level=surface&overlay=clouds&product=${product}&model=${product}&menu=&message=true&marker=true&type=map&location=coordinates&m=${WINDY_MAP_ID}`;
+      // product と model を明示指定し、Windy本家URLと同じ末尾パラメータ(m=...)も付与
+      return `${WINDY_EMBED_BASE}?lat=${latStr}&lon=${lngStr}&detailLat=${latStr}&detailLon=${lngStr}&zoom=${WINDY_Z}&level=surface&overlay=clouds&product=${product}&model=${product}&menu=&message=true&marker=true&type=map&location=coordinates&m=********`;
     };
 
     const meteoblueUrl = (lat, lng) => {
@@ -291,10 +299,11 @@ HTML = """<!DOCTYPE html>
       });
       const scwUrl = `https://supercweather.com/?${params.toString()}`;
       const coUrl = `https://clearoutside.com/forecast/${lat.toFixed(4)}/${lng.toFixed(4)}`;
-      const wUrl = windyUrl(lat, lng);
-      const wGfsUrl = windyGfsUrl(lat, lng);
+      const wUrl = windyEmbedUrl(lat, lng, "ecmwf");
+      const wGfsUrl = windyEmbedUrl(lat, lng, "gfs");
+      // MSMは embed2 非対応のため本家URLを使用（ピッカーなし）
       const wJmaUrl = windyJmaUrl(lat, lng);
-      const wIconUrl = windyIconUrl(lat, lng);
+      const wIconUrl = windyEmbedUrl(lat, lng, "icon");
       const lpUrl = lpmUrl(lat, lng);
       const stUrl = stellariumUrl(lat, lng);
       const mbUrl = meteoblueUrl(lat, lng);
@@ -597,13 +606,12 @@ HTML = """<!DOCTYPE html>
     ${models
       .map(
         (m, i) => {
-          let url = "";
           let body = "";
           if (m.product === "scw") {
-            url = `https://supercweather.com/?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}&model=msm78&element=cp&zl=13`;
-            body = `<iframe src="${url}" loading="lazy"></iframe>`;
+            const scwUrl = `https://supercweather.com/?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}&model=msm78&element=cp&zl=13`;
+            body = `<iframe src="${scwUrl}" loading="lazy"></iframe>`;
           } else {
-            url = windyEmbedUrl(lat, lng, m.product);
+            const url = windyEmbedUrl(lat, lng, m.product);
             body = `<iframe src="${url}" loading="lazy"></iframe>`;
           }
           return `
