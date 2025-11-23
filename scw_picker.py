@@ -572,7 +572,7 @@ HTML = """<!DOCTYPE html>
         { label: "ECMWF", product: "ecmwf" },
         { label: "GFS", product: "gfs" },
         { label: "ICON", product: "icon" },
-        { label: "SCW", product: "scw" },
+        { label: "SCW ※Windy埋め込みはJMA MSMの分割表示が公式非対応のため、分割表示から除外しています。", product: "scw" },
       ];
       const doc = `
 <!DOCTYPE html>
