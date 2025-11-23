@@ -96,7 +96,7 @@ HTML = """<!DOCTYPE html>
       <button id="open-lpm" class="btn-drag" disabled>LightPollutionMap</button>
       <button id="open-ventusky" class="btn-drag" disabled>Ventusky</button>
       <button id="open-meteoblue" class="btn-drag" disabled>meteoblue</button>
-      <button id="open-windy-quad" class="btn-drag" disabled>Windy 4分割</button>
+      <button id="open-windy-quad" class="btn-drag" disabled>Windy 3分割</button>
     </div>
     <div class="row">
       <input id="fav-name" type="text" placeholder="お気に入り名（空なら地名か座標）" />
@@ -118,10 +118,11 @@ HTML = """<!DOCTYPE html>
       <div><strong>使い方:</strong></div>
       <ul style="margin:4px 0 0 18px; padding:0; color:var(--fg); line-height:1.4;">
         <li>地図をクリック → 座標と地名を取得し、各サイトボタンが有効になります。</li>
-        <li>Windy 4分割ボタンは別ウィンドウで4モデルを表示します（ポップアップ許可が必要な場合あり）。</li>
+        <li>Windy 3分割ボタンは別ウィンドウで3モデル＋空き1枠を表示します（ポップアップ許可が必要な場合あり）。</li>
         <li>お気に入りは最大10件。名称未入力なら地名→座標の順で自動設定。削除は各行の削除ボタン。</li>
         <li>ライト/ダーク切替はブラウザに保存され、再訪時に復元されます。</li>
         <li>サイトボタンはドラッグで並び替えでき、順序は保存されます。</li>
+        <li>Windy埋め込みはJMA MSMの分割表示が公式非対応のため、分割表示から除外しています。</li>
       </ul>
     </div>
     <div class="row">
@@ -175,6 +176,7 @@ HTML = """<!DOCTYPE html>
     const WINDY_LAYER = "clouds";
     const WINDY_SLUG = "-%E9%9B%B2-clouds";
     const WINDY_TRAIL = "i:pressure,p:cities,m:eIIaj3f";
+    const WINDY_MAP_ID = "eIIaj3f"; // iframe/embed 用にも付与してWindy本家URLと揃える
     const LPM_DEFAULT_ZOOM = 10;
     const LPM_STATE = "eyJiYXNlbWFwIjoiTGF5ZXJCaW5nUm9hZCIsIm92ZXJsYXkiOiJ2aWlyc18yMDI0Iiwib3ZlcmxheWNvbG9yIjpmYWxzZSwib3ZlcmxheW9wYWNpdHkiOiI2MCIsImZlYXR1cmVzb3BhY2l0eSI6Ijg1In0=";
     const FAV_KEY = "scw_picker_favorites_v1";
@@ -215,8 +217,13 @@ HTML = """<!DOCTYPE html>
     };
     const stellariumUrl = (lat, lng) =>
       `https://stellarium-web.org/?lat=${lat.toFixed(4)}&lng=${lng.toFixed(4)}`;
-    const windyEmbedUrl = (lat, lng, product) =>
-      `${WINDY_EMBED_BASE}?lat=${lat.toFixed(4)}&lon=${lng.toFixed(4)}&detailLat=${lat.toFixed(4)}&detailLon=${lng.toFixed(4)}&zoom=${WINDY_Z}&level=surface&overlay=clouds&product=${product}&menu=&message=true&marker=true&type=map&location=coordinates`;
+    // 4分割も単体Windyと同じ精度・ズームを使う（ズレ防止）
+    const windyEmbedUrl = (lat, lng, product) => {
+      const latStr = lat.toFixed(3);
+      const lngStr = lng.toFixed(3);
+      // product と model を明示指定し、埋め込みと本家URLで同じモデルを使う
+      return `${WINDY_EMBED_BASE}?lat=${latStr}&lon=${lngStr}&detailLat=${latStr}&detailLon=${lngStr}&zoom=${WINDY_Z}&level=surface&overlay=clouds&product=${product}&model=${product}&menu=&message=true&marker=true&type=map&location=coordinates&m=${WINDY_MAP_ID}`;
+    };
 
     const meteoblueUrl = (lat, lng) => {
       const fmt = (v, pos, neg) => `${Math.abs(v).toFixed(3)}${v >= 0 ? pos : neg}`;
@@ -565,14 +572,14 @@ HTML = """<!DOCTYPE html>
         { label: "ECMWF", product: "ecmwf" },
         { label: "GFS", product: "gfs" },
         { label: "ICON", product: "icon" },
-        { label: "JMA", product: "jma" },
+        { label: "MSMの分割表示が公式非対応のため、分割表示から除外しています。", product: null },
       ];
       const doc = `
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Windy 4分割</title>
+  <title>Windy 3分割</title>
   <style>
     body { margin:0; background:#0f172a; color:#e5e7eb; font-family:system-ui,-apple-system,sans-serif; }
     .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); grid-auto-rows:50vh; gap:6px; padding:6px; box-sizing:border-box; height:100vh; }
@@ -581,6 +588,7 @@ HTML = """<!DOCTYPE html>
     .card header { padding:6px 10px; background:#111827; border-bottom:1px solid #334155; font-weight:600; display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .actions { display:flex; gap:6px; }
     .actions button { background:#2563eb; color:#fff; border:0; border-radius:4px; padding:4px 8px; cursor:pointer; }
+    .url { font-size:12px; color:#cbd5e1; padding:4px 10px; background:#0b1220; border-bottom:1px solid #1f2937; word-break: break-all; }
     iframe { flex:1; border:0; width:100%; height:100%; }
   </style>
 </head>
@@ -588,7 +596,9 @@ HTML = """<!DOCTYPE html>
   <div class="grid" id="grid">
     ${models
       .map(
-        (m, i) => `
+        (m, i) => {
+          const url = m.product ? windyEmbedUrl(lat, lng, m.product) : "";
+          return `
       <div class="card" data-idx="${i}">
         <header>
           <span>${m.label}</span>
@@ -597,8 +607,9 @@ HTML = """<!DOCTYPE html>
             <button onclick="restore()">元に戻す</button>
           </div>
         </header>
-        <iframe src="${windyEmbedUrl(lat, lng, m.product)}" loading="lazy"></iframe>
-      </div>`
+        ${m.product ? `<iframe src="${url}" loading="lazy"></iframe>` : `<div class="url"></div>`}
+      </div>`;
+        }
       )
       .join("")}
   </div>
